@@ -8,6 +8,13 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKEND="$ROOT/backend"
 FRONTEND="$ROOT/frontend"
 
+# Mode dev : ./start.sh --dev  → quota illimité + cache des vidéos testées.
+# La variable exportée l'emporte sur le .env (dotenv n'écrase pas l'env existant).
+if [ "$1" = "--dev" ]; then
+  export REFLOW_DEV_MODE=true
+  echo "→ Mode dev activé (quota illimité + cache des générations)"
+fi
+
 # --- Backend : venv + dépendances + .env ---
 cd "$BACKEND"
 if [ ! -d ".venv" ]; then

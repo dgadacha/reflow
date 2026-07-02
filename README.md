@@ -77,9 +77,10 @@ Test rapide du backend : `curl -X POST localhost:8787/api/process -H "Content-Ty
 
 ### Mode dev (tester sans coût API)
 
-`REFLOW_DEV_MODE=true` dans `.env` : le résultat de chaque vidéo est mis en cache
-(par URL + persona + voix) dans `backend/.cache/`. Retester la même vidéo ressert le
-cache **sans rappeler Claude** et sans consommer le quota. L'interface affiche « ⚡ cache ».
+Lancer en mode dev : **`./start.sh --dev`** (ou `REFLOW_DEV_MODE=true` dans `.env`).
+Le résultat de chaque vidéo est mis en cache (par URL + persona + voix) dans
+`backend/.cache/` : retester la même vidéo ressert le cache **sans rappeler Claude**,
+et le **quota est illimité**. L'interface affiche « ⚡ cache » / « illimité ».
 Vider le cache : `rm -rf backend/.cache`.
 
 ## Tarifs

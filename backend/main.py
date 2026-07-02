@@ -15,7 +15,7 @@ from pydantic import BaseModel
 
 from core import cache
 from core.config import settings
-from core.quota import check_and_reserve
+from core.quota import check_and_reserve, peek
 from services.generate import generate_content
 from services.transcribe import get_transcript
 
@@ -38,6 +38,15 @@ class ProcessRequest(BaseModel):
 @app.get("/api/health")
 def health() -> dict:
     return {"status": "ok", "model": settings.MODEL}
+
+
+@app.get("/api/quota")
+def quota(request: Request) -> dict:
+    """Quota restant du mois, sans rien consommer."""
+    if settings.DEV_MODE:
+        return {"unlimited": True, "remaining": None, "limit": settings.FREE_MONTHLY_QUOTA}
+    identifier = request.client.host if request.client else "anonymous"
+    return {"unlimited": False, "remaining": peek(identifier), "limit": settings.FREE_MONTHLY_QUOTA}
 
 
 def _reserve_quota(request: Request) -> tuple[bool, int | None, str | None]:

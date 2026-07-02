@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
 import Icon from "./Icon.vue";
 
 const API = import.meta.env.PUBLIC_API_URL || "http://localhost:8787";
@@ -15,6 +15,14 @@ const drawerKey = ref(null);
 const exportOpen = ref(false);
 const copied = ref(false);
 const showTranscript = ref(false);
+const quotaInfo = ref(null);
+
+onMounted(async () => {
+  try {
+    const res = await fetch(`${API}/api/quota`);
+    if (res.ok) quotaInfo.value = await res.json();
+  } catch { /* silencieux */ }
+});
 
 const PERSONAS = [
   "Entrepreneur", "Créateur", "Coach", "SaaS",
@@ -184,6 +192,11 @@ function exportMarkdown(key) {
         <label>Voix <select v-model="voice"><option v-for="v in VOICES" :key="v" :value="v">{{ v }}</option></select></label>
       </div>
       <p v-if="error" class="error">⚠ {{ error }}</p>
+      <p v-if="quotaInfo" class="quota-line">
+        <Icon name="sparkles" :size="14" />
+        <template v-if="quotaInfo.unlimited">Quota illimité (mode dev)</template>
+        <template v-else>{{ quotaInfo.remaining }} / {{ quotaInfo.limit }} vidéos gratuites ce mois</template>
+      </p>
     </div>
     <div class="pricing">
       <div class="plan">
@@ -429,6 +442,8 @@ input:focus { outline: none; border-color: var(--accent); }
 .composer-opts label { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 0.88rem; }
 select { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; color: var(--text); font-size: 0.88rem; }
 .error { color: #ff7a7a; margin: 12px 0 0; font-size: 0.9rem; }
+.quota-line { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 0.85rem; margin: 12px 2px 0; }
+.quota-line :deep(svg) { color: var(--accent); }
 .pricing { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 48px; }
 @media (max-width: 620px) { .pricing { grid-template-columns: 1fr; } }
 .plan { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 22px; }

@@ -28,6 +28,15 @@ def _current_period() -> str:
     return time.strftime("%Y-%m")
 
 
+def peek(identifier: str) -> int:
+    """Nombre d'unités restantes pour `identifier` ce mois, sans rien réserver."""
+    data = _load()
+    user = data.get(identifier, {})
+    if user.get("period") != _current_period():
+        return settings.FREE_MONTHLY_QUOTA
+    return max(0, settings.FREE_MONTHLY_QUOTA - user.get("count", 0))
+
+
 def check_and_reserve(identifier: str) -> tuple[bool, int]:
     """Vérifie le quota pour `identifier` (IP ou user_id) et réserve une unité.
 
