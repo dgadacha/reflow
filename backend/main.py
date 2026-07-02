@@ -9,6 +9,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from core import cache
 from core.config import settings
 from core.quota import check_and_reserve
 from services.generate import generate_content
@@ -37,19 +38,28 @@ def health() -> dict:
 
 @app.post("/api/process")
 def process(req: ProcessRequest, request: Request) -> dict:
+    # --- Cache dev : ressert le résultat sans rappeler Claude ------------------
+    cached = cache.get(req.url, req.persona, req.voice)
+    if cached is not None:
+        return {**cached, "from_cache": True}
+
     if not settings.ANTHROPIC_API_KEY:
         return _error("Clé ANTHROPIC_API_KEY manquante côté serveur.", 500)
 
     # --- Paywall / quota ------------------------------------------------------
     # MVP : quota par IP. En production, remplacer par l'user_id issu de l'auth
     # Supabase et vérifier l'abonnement Stripe actif avant d'appeler check_and_reserve.
-    identifier = request.client.host if request.client else "anonymous"
-    allowed, remaining = check_and_reserve(identifier)
-    if not allowed:
-        return _error(
-            "Quota gratuit épuisé pour ce mois. Passe à un plan payant pour continuer.",
-            402,
-        )
+    # En mode dev, le quota est ignoré.
+    if settings.DEV_MODE:
+        remaining = settings.FREE_MONTHLY_QUOTA
+    else:
+        identifier = request.client.host if request.client else "anonymous"
+        allowed, remaining = check_and_reserve(identifier)
+        if not allowed:
+            return _error(
+                "Quota gratuit épuisé pour ce mois. Passe à un plan payant pour continuer.",
+                402,
+            )
 
     # --- Traitement -----------------------------------------------------------
     try:
@@ -64,15 +74,18 @@ def process(req: ProcessRequest, request: Request) -> dict:
     except Exception as e:  # noqa: BLE001
         return _error(f"Génération impossible : {e}", 502)
 
-    return {
+    result = {
         "title": transcript.title,
         "duration": transcript.duration,
         "transcript_source": transcript.source,
         "transcript_chars": len(transcript.text),
         "transcript": transcript.text,
         "quota_remaining": remaining,
+        "from_cache": False,
         "formats": formats,
     }
+    cache.put(req.url, req.persona, req.voice, result)
+    return result
 
 
 def _error(message: str, code: int) -> dict:

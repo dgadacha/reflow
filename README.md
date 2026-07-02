@@ -61,6 +61,13 @@ Test rapide du backend : `curl -X POST localhost:8787/api/process -H "Content-Ty
 >
 > Backend distant : pointe le frontend via la variable d'env `PUBLIC_API_URL`.
 
+### Mode dev (tester sans coût API)
+
+`REFLOW_DEV_MODE=true` dans `.env` : le résultat de chaque vidéo est mis en cache
+(par URL + persona + voix) dans `backend/.cache/`. Retester la même vidéo ressert le
+cache **sans rappeler Claude** et sans consommer le quota. L'interface affiche « ⚡ cache ».
+Vider le cache : `rm -rf backend/.cache`.
+
 ## Tarifs
 
 | Plan | Prix | Vidéos/mois | Inclus |

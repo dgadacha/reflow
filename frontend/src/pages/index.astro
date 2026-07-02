@@ -7,135 +7,72 @@ import Repurposer from "../components/Repurposer.vue";
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Reflow — Transforme une vidéo en une semaine de contenu</title>
+    <title>Reflow — Une vidéo, une semaine de contenu</title>
     <meta
       name="description"
-      content="Colle un lien YouTube, récupère un article de blog, un thread X, une newsletter, des posts LinkedIn et Instagram — en une minute."
+      content="Colle un lien YouTube, repars avec un calendrier éditorial complet et tous tes contenus prêts à publier."
     />
   </head>
   <body>
-    <header class="hero">
-      <div class="brand">✦ Reflow</div>
-      <h1>Un podcast entre. Une <em>semaine</em> de contenu sort.</h1>
-      <p class="sub">
-        Colle un lien YouTube. Repars avec un calendrier éditorial complet —
-        posts LinkedIn &amp; carrousels, thread X, newsletter, carrousel Instagram,
-        article SEO et idées de clips, prêts à publier. En une minute.
-      </p>
+    <header class="topbar">
+      <div class="brand">Reflow</div>
+      <nav class="topnav">
+        <a href="#">Produit</a>
+        <a href="#">Tarifs</a>
+        <a class="cta" href="#">Se connecter</a>
+      </nav>
     </header>
 
-    <main>
-      <Repurposer client:load />
-    </main>
-
-    <section class="pricing">
-      <h2>Tarifs simples</h2>
-      <div class="plans">
-        <div class="plan">
-          <div class="plan-name">Gratuit</div>
-          <div class="price">0$<span>/mois</span></div>
-          <p class="plan-sub">Parfait pour découvrir Reflow.</p>
-          <ul>
-            <li>3 vidéos offertes</li>
-            <li>Tous les formats inclus</li>
-            <li>Sans carte bancaire</li>
-          </ul>
-        </div>
-        <div class="plan featured">
-          <div class="badge">Populaire</div>
-          <div class="plan-name">Reflow Pro</div>
-          <div class="price">19$<span>/mois</span></div>
-          <p class="plan-sub">Pour créateurs, fondateurs et équipes marketing.</p>
-          <ul>
-            <li>30 vidéos par mois</li>
-            <li>Tous les formats inclus</li>
-            <li>Historique des générations</li>
-            <li>Export Markdown</li>
-            <li>Mises à jour incluses</li>
-          </ul>
-          <p class="cancel">Annulation à tout moment.</p>
-        </div>
-      </div>
-    </section>
-
-    <footer>
-      <p>Reflow · MVP · propulsé par Claude</p>
-    </footer>
+    <Repurposer client:load />
 
     <style is:global>
       :root {
-        --bg: #0d0f1a;
-        --card: #161a2b;
-        --line: #262b40;
-        --text: #e7e9f2;
-        --muted: #9aa0b8;
-        --accent: #7c6cff;
-        --accent-2: #4ad5c4;
+        /* Palette sobre, plate — inspiration Linear/Stripe, glow réduit */
+        --bg: #0b0c0e;
+        --panel: #131418;
+        --panel-2: #17191e;
+        --line: #23262d;
+        --line-soft: #1c1e24;
+        --text: #e7e8ec;
+        --muted: #888c96;
+        --faint: #5b5f6a;
+        --accent: #635bff;
+        --accent-soft: #635bff22;
+        --ok: #3ecf8e;
       }
       * { box-sizing: border-box; }
+      html, body { height: 100%; }
       body {
         margin: 0;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        background: radial-gradient(1200px 600px at 50% -10%, #1b1f38 0%, var(--bg) 60%);
+        background: var(--bg);
         color: var(--text);
-        min-height: 100vh;
+        -webkit-font-smoothing: antialiased;
       }
-      .hero {
-        max-width: 760px;
-        margin: 0 auto;
-        padding: 64px 24px 24px;
-        text-align: center;
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 24px;
+        height: 56px;
+        border-bottom: 1px solid var(--line-soft);
+        position: sticky;
+        top: 0;
+        background: rgba(11, 12, 14, 0.85);
+        backdrop-filter: blur(8px);
+        z-index: 10;
       }
-      .brand {
-        font-weight: 700;
-        letter-spacing: 0.5px;
-        color: var(--accent-2);
-        margin-bottom: 28px;
-      }
-      h1 { font-size: 2.6rem; line-height: 1.1; margin: 0 0 16px; }
-      h1 em { color: var(--accent); font-style: normal; }
-      .sub { color: var(--muted); font-size: 1.15rem; max-width: 620px; margin: 0 auto; }
-      main { max-width: 860px; margin: 0 auto; padding: 24px; }
-
-      .pricing { max-width: 780px; margin: 48px auto 0; padding: 24px; }
-      .pricing h2 { text-align: center; font-size: 1.6rem; margin-bottom: 28px; }
-      .plans { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-      @media (max-width: 640px) { .plans { grid-template-columns: 1fr; } }
-      .plan {
-        position: relative;
-        background: var(--card);
+      .brand { font-weight: 650; letter-spacing: -0.01em; }
+      .topnav { display: flex; align-items: center; gap: 22px; }
+      .topnav a { color: var(--muted); text-decoration: none; font-size: 0.9rem; }
+      .topnav a:hover { color: var(--text); }
+      .topnav a.cta {
+        color: var(--text);
+        background: var(--panel-2);
         border: 1px solid var(--line);
-        border-radius: 16px;
-        padding: 28px 24px;
+        padding: 7px 14px;
+        border-radius: 8px;
       }
-      .plan.featured { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
-      .badge {
-        position: absolute;
-        top: -12px;
-        right: 20px;
-        background: var(--accent);
-        color: #fff;
-        font-size: 0.75rem;
-        font-weight: 600;
-        padding: 4px 12px;
-        border-radius: 20px;
-      }
-      .plan-name { font-weight: 700; font-size: 1.15rem; }
-      .price { font-size: 2.2rem; font-weight: 700; margin: 12px 0 4px; }
-      .price span { font-size: 1rem; color: var(--muted); font-weight: 400; }
-      .plan-sub { color: var(--muted); font-size: 0.95rem; margin: 0 0 18px; }
-      .plan ul { list-style: none; padding: 0; margin: 0; }
-      .plan li { padding: 7px 0 7px 26px; position: relative; color: var(--text); }
-      .plan li::before {
-        content: "✓";
-        position: absolute;
-        left: 0;
-        color: var(--accent-2);
-        font-weight: 700;
-      }
-      .cancel { color: var(--muted); font-size: 0.85rem; margin: 18px 0 0; }
-
-      footer { text-align: center; color: var(--muted); padding: 48px 0; font-size: 0.9rem; }
     </style>
   </body>
 </html>

@@ -30,5 +30,9 @@ class Settings:
     # sous-titre n'est disponible (nécessite faster-whisper installé).
     ENABLE_WHISPER_FALLBACK: bool = os.getenv("REFLOW_WHISPER", "false").lower() == "true"
 
+    # Mode dev : met en cache les résultats (voir core/cache.py) et ignore le quota,
+    # pour tester sans rappeler l'API Claude sur la même vidéo.
+    DEV_MODE: bool = os.getenv("REFLOW_DEV_MODE", "false").lower() == "true"
+
 
 settings = Settings()
