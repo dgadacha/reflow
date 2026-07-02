@@ -1,0 +1,72 @@
+---
+import Repurposer from "../components/Repurposer.vue";
+---
+
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reflow — Transforme une vidéo en une semaine de contenu</title>
+    <meta
+      name="description"
+      content="Colle un lien YouTube, récupère un article de blog, un thread X, une newsletter, des posts LinkedIn et Instagram — en une minute."
+    />
+  </head>
+  <body>
+    <header class="hero">
+      <div class="brand">✦ Reflow</div>
+      <h1>Transforme une vidéo en une <em>semaine</em> de contenu</h1>
+      <p class="sub">
+        Colle un lien YouTube. Récupère un article SEO, un thread X, une
+        newsletter, des posts LinkedIn &amp; Instagram et des idées de clips —
+        en une minute.
+      </p>
+    </header>
+
+    <main>
+      <Repurposer client:load />
+    </main>
+
+    <footer>
+      <p>Reflow · MVP · propulsé par Claude</p>
+    </footer>
+
+    <style is:global>
+      :root {
+        --bg: #0d0f1a;
+        --card: #161a2b;
+        --line: #262b40;
+        --text: #e7e9f2;
+        --muted: #9aa0b8;
+        --accent: #7c6cff;
+        --accent-2: #4ad5c4;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: radial-gradient(1200px 600px at 50% -10%, #1b1f38 0%, var(--bg) 60%);
+        color: var(--text);
+        min-height: 100vh;
+      }
+      .hero {
+        max-width: 760px;
+        margin: 0 auto;
+        padding: 64px 24px 24px;
+        text-align: center;
+      }
+      .brand {
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        color: var(--accent-2);
+        margin-bottom: 28px;
+      }
+      h1 { font-size: 2.6rem; line-height: 1.1; margin: 0 0 16px; }
+      h1 em { color: var(--accent); font-style: normal; }
+      .sub { color: var(--muted); font-size: 1.15rem; max-width: 620px; margin: 0 auto; }
+      main { max-width: 860px; margin: 0 auto; padding: 24px; }
+      footer { text-align: center; color: var(--muted); padding: 48px 0; font-size: 0.9rem; }
+    </style>
+  </body>
+</html>

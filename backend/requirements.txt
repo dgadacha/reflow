@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+anthropic
+yt-dlp
+python-dotenv
+
+# Optionnel — transcription locale de secours quand aucun sous-titre n'existe.
+# Nécessite aussi ffmpeg installé sur la machine (brew install ffmpeg).
+# faster-whisper
