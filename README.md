@@ -1,10 +1,24 @@
 # Reflow
 
-Transforme une vidéo YouTube (ou un podcast) en une semaine de contenu : article de
-blog SEO, thread X, post LinkedIn, newsletter, légendes Instagram/TikTok et idées de
-clips — en un seul clic.
+Moteur de réutilisation de contenu : transforme une vidéo YouTube en une semaine de
+contenu prêt à publier — en un clic.
+
+**Promesse : une vidéo entre, une semaine de contenu sort.**
 
 MVP : **FastAPI** (backend) + **Astro/Vue** (frontend) + **Claude Opus 4.8**.
+
+## Périmètre
+
+**V1** — calendrier éditorial · posts (LinkedIn/Facebook/Instagram) · carrousel unifié
+(LinkedIn/Instagram/TikTok) · thread (X/Threads) · clips (idées + hook) · source
+(résumé + transcript).
+
+**V2 (reporté)** — newsletter · article de blog · titres SEO · export Notion/PDF.
+
+**V3** — publication auto · génération d'images · génération de clips vidéo.
+
+Interface : app deux volets (dashboard Overview → sections en cartes → drawer avec
+aperçu réaliste + menu Exporter), icônes SVG, branding, dark sobre.
 
 ```
 reflow/

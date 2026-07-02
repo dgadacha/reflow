@@ -1,12 +1,16 @@
 """Reflow — API FastAPI.
 
-Endpoint principal : POST /api/process { url } → tous les formats de contenu.
-Lancement en local : uvicorn main:app --reload --port 8787
+- POST /api/process         → traitement complet, réponse JSON unique.
+- POST /api/process/stream  → même traitement en SSE (progression étape par étape).
+Lancement : uvicorn main:app --reload --port 8787
 """
 from __future__ import annotations
 
+import json
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
 from core import cache
@@ -36,41 +40,35 @@ def health() -> dict:
     return {"status": "ok", "model": settings.MODEL}
 
 
+def _reserve_quota(request: Request) -> tuple[bool, int | None, str | None]:
+    """(ok, remaining, error_message). Quota illimité en dev."""
+    if settings.DEV_MODE:
+        return True, None, None
+    identifier = request.client.host if request.client else "anonymous"
+    allowed, remaining = check_and_reserve(identifier)
+    if not allowed:
+        return False, None, "Quota gratuit épuisé pour ce mois. Passe à un plan payant pour continuer."
+    return True, remaining, None
+
+
 @app.post("/api/process")
 def process(req: ProcessRequest, request: Request) -> dict:
-    # --- Cache dev : ressert le résultat sans rappeler Claude ------------------
     cached = cache.get(req.url, req.persona, req.voice)
     if cached is not None:
         return {**cached, "from_cache": True}
-
     if not settings.ANTHROPIC_API_KEY:
         return _error("Clé ANTHROPIC_API_KEY manquante côté serveur.", 500)
 
-    # --- Paywall / quota ------------------------------------------------------
-    # MVP : quota par IP. En production, remplacer par l'user_id issu de l'auth
-    # Supabase et vérifier l'abonnement Stripe actif avant d'appeler check_and_reserve.
-    # En mode dev, le quota est ignoré.
-    if settings.DEV_MODE:
-        remaining = settings.FREE_MONTHLY_QUOTA
-    else:
-        identifier = request.client.host if request.client else "anonymous"
-        allowed, remaining = check_and_reserve(identifier)
-        if not allowed:
-            return _error(
-                "Quota gratuit épuisé pour ce mois. Passe à un plan payant pour continuer.",
-                402,
-            )
+    ok, remaining, msg = _reserve_quota(request)
+    if not ok:
+        return _error(msg, 402)
 
-    # --- Traitement -----------------------------------------------------------
     try:
         transcript = get_transcript(req.url)
-    except Exception as e:  # noqa: BLE001 — surface l'erreur au client
+    except Exception as e:  # noqa: BLE001
         return _error(f"Transcription impossible : {e}", 422)
-
     try:
-        formats = generate_content(
-            transcript.title, transcript.text, req.persona, req.voice
-        )
+        formats = generate_content(transcript.title, transcript.timed, req.persona, req.voice)
     except Exception as e:  # noqa: BLE001
         return _error(f"Génération impossible : {e}", 502)
 
@@ -88,7 +86,65 @@ def process(req: ProcessRequest, request: Request) -> dict:
     return result
 
 
-def _error(message: str, code: int) -> dict:
-    from fastapi.responses import JSONResponse
+@app.post("/api/process/stream")
+def process_stream(req: ProcessRequest, request: Request) -> StreamingResponse:
+    """Même traitement, émis en Server-Sent Events (progression réelle)."""
 
+    def gen():
+        cached = cache.get(req.url, req.persona, req.voice)
+        if cached is not None:
+            yield _sse("result", {**cached, "from_cache": True})
+            yield _sse("done", {})
+            return
+        if not settings.ANTHROPIC_API_KEY:
+            yield _sse("error", {"message": "Clé ANTHROPIC_API_KEY manquante côté serveur."})
+            return
+
+        ok, remaining, msg = _reserve_quota(request)
+        if not ok:
+            yield _sse("error", {"message": msg})
+            return
+
+        # Étape 1 — transcription
+        yield _sse("step", {"name": "transcript", "state": "start"})
+        try:
+            transcript = get_transcript(req.url)
+        except Exception as e:  # noqa: BLE001
+            yield _sse("error", {"message": f"Transcription impossible : {e}"})
+            return
+        yield _sse("step", {"name": "transcript", "state": "done",
+                            "detail": f"{len(transcript.text):,} caractères".replace(",", " ")})
+
+        # Étape 2 — génération
+        yield _sse("step", {"name": "generate", "state": "start"})
+        try:
+            formats = generate_content(transcript.title, transcript.timed, req.persona, req.voice)
+        except Exception as e:  # noqa: BLE001
+            yield _sse("error", {"message": f"Génération impossible : {e}"})
+            return
+        yield _sse("step", {"name": "generate", "state": "done"})
+
+        result = {
+            "title": transcript.title,
+            "duration": transcript.duration,
+            "transcript_source": transcript.source,
+            "transcript_chars": len(transcript.text),
+            "transcript": transcript.text,
+            "quota_remaining": remaining,
+            "from_cache": False,
+            "formats": formats,
+        }
+        cache.put(req.url, req.persona, req.voice, result)
+        yield _sse("result", result)
+        yield _sse("done", {})
+
+    return StreamingResponse(gen(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+def _sse(event: str, data: dict) -> str:
+    return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
+def _error(message: str, code: int):
     return JSONResponse(status_code=code, content={"error": message})

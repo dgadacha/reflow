@@ -1,9 +1,11 @@
-"""Récupération du transcript d'une vidéo/podcast.
+"""Récupération du transcript d'une vidéo/podcast, avec timecodes conservés.
 
 Stratégie (du moins cher au plus cher) :
-  1. Sous-titres YouTube (manuels ou auto-générés) via yt-dlp — gratuit, instantané.
-  2. Fallback Whisper local sur l'audio téléchargé — plus lent, nécessite un GPU
-     idéalement (activer via REFLOW_WHISPER=true).
+  1. Sous-titres YouTube (manuels ou auto) via yt-dlp — gratuit, instantané.
+  2. Fallback Whisper local sur l'audio (REFLOW_WHISPER=true).
+
+On conserve les timecodes de chaque segment pour produire une transcription
+horodatée `[MM:SS]` que Claude peut citer (timecodes réels des clips).
 """
 from __future__ import annotations
 
@@ -11,7 +13,7 @@ import json
 import re
 import tempfile
 import urllib.request
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import yt_dlp
 
@@ -22,13 +24,33 @@ from core.config import settings
 class Transcript:
     title: str
     duration: int  # secondes
-    text: str
+    text: str  # texte propre (affichage)
+    timed: str  # texte horodaté [MM:SS] (pour le modèle)
     source: str  # "subtitles" | "whisper"
+    segments: list = field(default_factory=list)  # [{start: float, text: str}]
 
 
 def _clean(text: str) -> str:
-    text = re.sub(r"\s+", " ", text)
-    return text.strip()
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _fmt_ts(sec: float) -> str:
+    sec = int(sec)
+    h, m, s = sec // 3600, (sec % 3600) // 60, sec % 60
+    return f"{h}:{m:02d}:{s:02d}" if h else f"{m:02d}:{s:02d}"
+
+
+def _build_timed(segments: list[dict], every: int = 15) -> str:
+    """Insère un marqueur [MM:SS] toutes les ~`every` secondes."""
+    out: list[str] = []
+    next_mark = 0.0
+    for seg in segments:
+        start = seg.get("start", 0.0)
+        if start >= next_mark:
+            out.append(f"\n[{_fmt_ts(start)}] ")
+            next_mark = start + every
+        out.append(seg["text"])
+    return "".join(out).strip()
 
 
 def get_transcript(url: str) -> Transcript:
@@ -45,24 +67,19 @@ def get_transcript(url: str) -> Transcript:
     title = info.get("title", "Sans titre")
     duration = int(info.get("duration") or 0)
 
-    # 1) Cherche des sous-titres dans les langues préférées.
     for source_field in ("subtitles", "automatic_captions"):
         tracks = info.get(source_field) or {}
         for lang in settings.SUBTITLE_LANGS:
-            # Gère les variantes ("en", "en-US", "en-orig", …).
-            match = next(
-                (k for k in tracks if k == lang or k.startswith(f"{lang}-")), None
-            )
+            match = next((k for k in tracks if k == lang or k.startswith(f"{lang}-")), None)
             if not match:
                 continue
-            text = _download_caption_track(tracks[match])
-            if text:
-                return Transcript(title, duration, _clean(text), "subtitles")
+            segments = _download_caption_track(tracks[match])
+            if segments:
+                return _build(title, duration, segments, "subtitles")
 
-    # 2) Fallback Whisper.
     if settings.ENABLE_WHISPER_FALLBACK:
-        text = _whisper_transcribe(url)
-        return Transcript(title, duration, _clean(text), "whisper")
+        segments = _whisper_transcribe(url)
+        return _build(title, duration, segments, "whisper")
 
     raise RuntimeError(
         "Aucun sous-titre disponible pour cette vidéo. "
@@ -70,19 +87,20 @@ def get_transcript(url: str) -> Transcript:
     )
 
 
-def _download_caption_track(formats: list[dict]) -> str | None:
-    """Télécharge une piste de sous-titres et en extrait le texte brut."""
-    # Préfère json3 (structuré, facile à parser), sinon vtt.
+def _build(title: str, duration: int, segments: list[dict], source: str) -> Transcript:
+    text = _clean(" ".join(s["text"] for s in segments))
+    timed = _build_timed(segments)
+    return Transcript(title, duration, text, timed, source, segments)
+
+
+def _download_caption_track(formats: list[dict]) -> list[dict] | None:
+    """Télécharge une piste de sous-titres → liste de segments {start, text}."""
     fmt = next((f for f in formats if f.get("ext") == "json3"), None)
     if fmt:
-        raw = _http_get(fmt["url"])
-        return _parse_json3(raw)
-
+        return _parse_json3(_http_get(fmt["url"]))
     fmt = next((f for f in formats if f.get("ext") == "vtt"), None)
     if fmt:
-        raw = _http_get(fmt["url"])
-        return _parse_vtt(raw)
-
+        return _parse_vtt(_http_get(fmt["url"]))
     return None
 
 
@@ -92,52 +110,64 @@ def _http_get(url: str) -> str:
         return resp.read().decode("utf-8", errors="ignore")
 
 
-def _parse_json3(raw: str) -> str:
+def _parse_json3(raw: str) -> list[dict]:
     data = json.loads(raw)
-    parts: list[str] = []
+    segments: list[dict] = []
     for event in data.get("events", []):
-        for seg in event.get("segs", []) or []:
-            if seg.get("utf8"):
-                parts.append(seg["utf8"])
-    return "".join(parts)
+        text = "".join(s.get("utf8", "") for s in event.get("segs", []) or [])
+        text = text.strip()
+        if text:
+            segments.append({"start": (event.get("tStartMs", 0)) / 1000.0, "text": text})
+    return segments
 
 
-def _parse_vtt(raw: str) -> str:
-    lines: list[str] = []
+def _vtt_ts_to_sec(ts: str) -> float:
+    # "HH:MM:SS.mmm" ou "MM:SS.mmm"
+    parts = ts.split(":")
+    parts = [float(p.replace(",", ".")) for p in parts]
+    while len(parts) < 3:
+        parts.insert(0, 0.0)
+    h, m, s = parts
+    return h * 3600 + m * 60 + s
+
+
+def _parse_vtt(raw: str) -> list[dict]:
+    segments: list[dict] = []
+    cur_start = None
+    buf: list[str] = []
     for line in raw.splitlines():
         line = line.strip()
-        if not line or "-->" in line or line.startswith(("WEBVTT", "Kind:", "Language:")):
+        if "-->" in line:
+            if cur_start is not None and buf:
+                segments.append({"start": cur_start, "text": " ".join(buf)})
+            cur_start = _vtt_ts_to_sec(line.split("-->")[0].strip().split(" ")[0])
+            buf = []
+        elif not line or line.startswith(("WEBVTT", "Kind:", "Language:")) or line.isdigit():
             continue
-        if line.isdigit():
-            continue
-        lines.append(re.sub(r"<[^>]+>", "", line))  # retire les balises inline
-    return " ".join(lines)
+        else:
+            buf.append(re.sub(r"<[^>]+>", "", line))
+    if cur_start is not None and buf:
+        segments.append({"start": cur_start, "text": " ".join(buf)})
+    return segments
 
 
-def _whisper_transcribe(url: str) -> str:
+def _whisper_transcribe(url: str) -> list[dict]:
     """Télécharge l'audio et le transcrit localement avec faster-whisper."""
     try:
         from faster_whisper import WhisperModel
     except ImportError as e:  # pragma: no cover
-        raise RuntimeError(
-            "faster-whisper n'est pas installé. `pip install faster-whisper`"
-        ) from e
+        raise RuntimeError("faster-whisper n'est pas installé. `pip install faster-whisper`") from e
 
     with tempfile.TemporaryDirectory() as tmp:
-        out = f"{tmp}/audio.%(ext)s"
         opts = {
             "format": "bestaudio/best",
-            "outtmpl": out,
+            "outtmpl": f"{tmp}/audio.%(ext)s",
             "quiet": True,
             "no_warnings": True,
-            "postprocessors": [
-                {"key": "FFmpegExtractAudio", "preferredcodec": "mp3"}
-            ],
+            "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "mp3"}],
         }
         with yt_dlp.YoutubeDL(opts) as ydl:
             ydl.download([url])
-
-        audio_path = f"{tmp}/audio.mp3"
         model = WhisperModel("base", device="auto", compute_type="int8")
-        segments, _ = model.transcribe(audio_path)
-        return " ".join(seg.text for seg in segments)
+        segments, _ = model.transcribe(f"{tmp}/audio.mp3")
+        return [{"start": seg.start, "text": seg.text.strip()} for seg in segments]
