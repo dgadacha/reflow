@@ -16,8 +16,10 @@ class Settings:
     # Langues de sous-titres à essayer en priorité (dans l'ordre).
     SUBTITLE_LANGS: list[str] = os.getenv("REFLOW_SUBTITLE_LANGS", "en,fr").split(",")
 
-    # Quota gratuit : nombre de vidéos/mois avant paywall (voir core/quota.py).
+    # Quotas mensuels par plan (voir core/quota.py).
+    # Gratuit : 3 vidéos. Reflow Pro (19$/mois) : 30 vidéos.
     FREE_MONTHLY_QUOTA: int = int(os.getenv("REFLOW_FREE_QUOTA", "3"))
+    PRO_MONTHLY_QUOTA: int = int(os.getenv("REFLOW_PRO_QUOTA", "30"))
 
     # Origines autorisées pour le CORS (frontend).
     CORS_ORIGINS: list[str] = os.getenv(

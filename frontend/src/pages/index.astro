@@ -16,17 +16,47 @@ import Repurposer from "../components/Repurposer.vue";
   <body>
     <header class="hero">
       <div class="brand">✦ Reflow</div>
-      <h1>Transforme une vidéo en une <em>semaine</em> de contenu</h1>
+      <h1>Un podcast entre. Une <em>semaine</em> de contenu sort.</h1>
       <p class="sub">
-        Colle un lien YouTube. Récupère un article SEO, un thread X, une
-        newsletter, des posts LinkedIn &amp; Instagram et des idées de clips —
-        en une minute.
+        Colle un lien YouTube. Repars avec un calendrier éditorial complet —
+        posts LinkedIn &amp; carrousels, thread X, newsletter, carrousel Instagram,
+        article SEO et idées de clips, prêts à publier. En une minute.
       </p>
     </header>
 
     <main>
       <Repurposer client:load />
     </main>
+
+    <section class="pricing">
+      <h2>Tarifs simples</h2>
+      <div class="plans">
+        <div class="plan">
+          <div class="plan-name">Gratuit</div>
+          <div class="price">0$<span>/mois</span></div>
+          <p class="plan-sub">Parfait pour découvrir Reflow.</p>
+          <ul>
+            <li>3 vidéos offertes</li>
+            <li>Tous les formats inclus</li>
+            <li>Sans carte bancaire</li>
+          </ul>
+        </div>
+        <div class="plan featured">
+          <div class="badge">Populaire</div>
+          <div class="plan-name">Reflow Pro</div>
+          <div class="price">19$<span>/mois</span></div>
+          <p class="plan-sub">Pour créateurs, fondateurs et équipes marketing.</p>
+          <ul>
+            <li>30 vidéos par mois</li>
+            <li>Tous les formats inclus</li>
+            <li>Historique des générations</li>
+            <li>Export Markdown</li>
+            <li>Mises à jour incluses</li>
+          </ul>
+          <p class="cancel">Annulation à tout moment.</p>
+        </div>
+      </div>
+    </section>
 
     <footer>
       <p>Reflow · MVP · propulsé par Claude</p>
@@ -66,6 +96,45 @@ import Repurposer from "../components/Repurposer.vue";
       h1 em { color: var(--accent); font-style: normal; }
       .sub { color: var(--muted); font-size: 1.15rem; max-width: 620px; margin: 0 auto; }
       main { max-width: 860px; margin: 0 auto; padding: 24px; }
+
+      .pricing { max-width: 780px; margin: 48px auto 0; padding: 24px; }
+      .pricing h2 { text-align: center; font-size: 1.6rem; margin-bottom: 28px; }
+      .plans { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+      @media (max-width: 640px) { .plans { grid-template-columns: 1fr; } }
+      .plan {
+        position: relative;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 28px 24px;
+      }
+      .plan.featured { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+      .badge {
+        position: absolute;
+        top: -12px;
+        right: 20px;
+        background: var(--accent);
+        color: #fff;
+        font-size: 0.75rem;
+        font-weight: 600;
+        padding: 4px 12px;
+        border-radius: 20px;
+      }
+      .plan-name { font-weight: 700; font-size: 1.15rem; }
+      .price { font-size: 2.2rem; font-weight: 700; margin: 12px 0 4px; }
+      .price span { font-size: 1rem; color: var(--muted); font-weight: 400; }
+      .plan-sub { color: var(--muted); font-size: 0.95rem; margin: 0 0 18px; }
+      .plan ul { list-style: none; padding: 0; margin: 0; }
+      .plan li { padding: 7px 0 7px 26px; position: relative; color: var(--text); }
+      .plan li::before {
+        content: "✓";
+        position: absolute;
+        left: 0;
+        color: var(--accent-2);
+        font-weight: 700;
+      }
+      .cancel { color: var(--muted); font-size: 0.85rem; margin: 18px 0 0; }
+
       footer { text-align: center; color: var(--muted); padding: 48px 0; font-size: 0.9rem; }
     </style>
   </body>

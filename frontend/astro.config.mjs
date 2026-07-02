@@ -4,4 +4,5 @@ import vue from "@astrojs/vue";
 export default defineConfig({
   integrations: [vue()],
   server: { port: 4321 },
+  devToolbar: { enabled: false },
 });

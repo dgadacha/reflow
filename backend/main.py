@@ -26,6 +26,8 @@ app.add_middleware(
 
 class ProcessRequest(BaseModel):
     url: str
+    persona: str | None = None
+    voice: str | None = None
 
 
 @app.get("/api/health")
@@ -56,7 +58,9 @@ def process(req: ProcessRequest, request: Request) -> dict:
         return _error(f"Transcription impossible : {e}", 422)
 
     try:
-        formats = generate_content(transcript.title, transcript.text)
+        formats = generate_content(
+            transcript.title, transcript.text, req.persona, req.voice
+        )
     except Exception as e:  # noqa: BLE001
         return _error(f"Génération impossible : {e}", 502)
 
@@ -65,6 +69,7 @@ def process(req: ProcessRequest, request: Request) -> dict:
         "duration": transcript.duration,
         "transcript_source": transcript.source,
         "transcript_chars": len(transcript.text),
+        "transcript": transcript.text,
         "quota_remaining": remaining,
         "formats": formats,
     }

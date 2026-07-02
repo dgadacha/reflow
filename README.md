@@ -61,15 +61,21 @@ Test rapide du backend : `curl -X POST localhost:8787/api/process -H "Content-Ty
 >
 > Backend distant : pointe le frontend via la variable d'env `PUBLIC_API_URL`.
 
-## Économie du MVP
+## Tarifs
 
-| Poste | Coût réel par vidéo | Prix de vente cible |
-|-------|---------------------|---------------------|
-| Sous-titres YouTube | 0 € | — |
-| Génération Claude (~15-40k tokens) | ~0,10–0,40 $ | inclus dans l'abonnement |
-| **Abonnement** | | 19 $ (20 vidéos) / 49 $ (illimité soft) / 99 $ (équipe) |
+| Plan | Prix | Vidéos/mois | Inclus |
+|------|------|-------------|--------|
+| **Gratuit** | 0 $ | 3 | Tous les formats · sans carte bancaire |
+| **Reflow Pro** | 19 $/mois | 30 | Tous les formats · historique · export Markdown · mises à jour · annulation à tout moment |
 
-Marge > 85 %. Le quota gratuit (3 vidéos/mois) sert de hook d'acquisition.
+## Économie
+
+| Poste | Coût réel par vidéo |
+|-------|---------------------|
+| Sous-titres YouTube | 0 € |
+| Génération Claude (~15-40k tokens) | ~0,10–0,40 $ |
+
+Marge > 85 %. Le plan gratuit (3 vidéos/mois) sert de hook d'acquisition.
 
 ## Passer en production
 
