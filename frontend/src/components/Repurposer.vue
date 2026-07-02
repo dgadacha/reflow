@@ -38,9 +38,9 @@ const NAV_CONTENT = [
   { key: "posts", label: "Posts", icon: "message" },
   { key: "carousels", label: "Carrousels", icon: "layers" },
   { key: "threads", label: "Threads", icon: "send" },
+  { key: "clips", label: "Clips", icon: "film" },
 ];
 const NAV_BOTTOM = [
-  { key: "clips", label: "Clips", icon: "film" },
   { key: "source", label: "Source", icon: "file" },
 ];
 
@@ -48,8 +48,8 @@ const fmt = computed(() => result.value?.formats ?? {});
 
 // --- Helpers ----------------------------------------------------------------
 const chars = (t) => (t || "").length;
-const snippet = (t, n = 120) => {
-  const s = (t || "").replace(/\n+/g, " ").trim();
+const snippet = (t, n = 380) => {
+  const s = (t || "").trim();
   return s.length > n ? s.slice(0, n) + "…" : s;
 };
 
@@ -57,6 +57,35 @@ const posts = computed(() => fmt.value.posts ?? []);
 const carousel = computed(() => fmt.value.carousel ?? null);
 const thread = computed(() => fmt.value.thread ?? []);
 const clips = computed(() => fmt.value.clips ?? []);
+
+// Temps de lecture estimé d'un carrousel (~5 s / slide).
+const carouselSeconds = computed(() => (carousel.value ? carousel.value.slides.length * 5 : 0));
+
+// Temps économisé estimé (métrique vendeuse).
+const timeSaved = computed(() => {
+  const m =
+    posts.value.length * 30 +
+    (carousel.value ? 45 : 0) +
+    (thread.value.length ? 30 : 0) +
+    clips.value.length * 12;
+  const h = Math.floor(m / 60);
+  const mm = m % 60;
+  return h ? `${h}h${String(mm).padStart(2, "0")}` : `${mm} min`;
+});
+
+// Clic sur un jour du calendrier → ouvre le contenu correspondant.
+function openFromCalendar(entry) {
+  const t = `${entry.channel} ${entry.action}`.toLowerCase();
+  if (/carrousel|carousel/.test(t)) { section.value = "carousels"; openDrawer("carousel"); return; }
+  if (/thread/.test(t)) { section.value = "threads"; openDrawer("thread"); return; }
+  if (/clip|reel|short|tiktok/.test(t)) { section.value = "clips"; return; }
+  const chan = entry.channel.toLowerCase();
+  const idx = posts.value.findIndex(
+    (p) => chan.includes(p.platform.toLowerCase()) || p.platform.toLowerCase().includes(chan),
+  );
+  section.value = "posts";
+  if (idx >= 0) openDrawer("post:" + idx);
+}
 
 const stats = computed(() => {
   const platforms = new Set(posts.value.map((p) => p.platform));
@@ -178,6 +207,7 @@ function exportMarkdown(key) {
   <div v-if="!result && !loading" class="landing">
     <div class="intro">
       <div class="logo-lg" v-html="LOGO"></div>
+      <div class="kicker">Content Repurposing OS</div>
       <h1>Une vidéo entre.<br />Une <span>semaine</span> de contenu sort.</h1>
       <p>Colle un lien YouTube. Repars avec un calendrier éditorial et tous tes
         contenus prêts à publier — posts, carrousels, threads, clips.</p>
@@ -252,11 +282,9 @@ function exportMarkdown(key) {
         <h2>Semaine générée</h2>
         <p class="lead">Tout ton contenu de la semaine, prêt à publier.</p>
         <div class="stat-row">
-          <div class="stat"><div class="stat-n">1</div><div class="stat-l">vidéo analysée</div></div>
+          <div class="stat featured"><div class="stat-n">≈ {{ timeSaved }}</div><div class="stat-l">temps économisé</div></div>
+          <div class="stat"><div class="stat-n">{{ stats.contents }}</div><div class="stat-l">contenus prêts à publier</div></div>
           <div class="stat"><div class="stat-n">{{ stats.days }}</div><div class="stat-l">jours de contenu</div></div>
-          <div class="stat"><div class="stat-n">{{ stats.contents }}</div><div class="stat-l">contenus générés</div></div>
-          <div class="stat"><div class="stat-n">{{ stats.platforms }}</div><div class="stat-l">plateformes</div></div>
-          <div class="stat"><div class="stat-n">{{ stats.clips }}</div><div class="stat-l">idées de clips</div></div>
         </div>
         <div class="breakdown">
           <div v-for="b in summary" :key="b.label" class="bd-row" @click="section = b.section">
@@ -267,7 +295,7 @@ function exportMarkdown(key) {
         </div>
         <h3>Calendrier de publication</h3>
         <div class="calendar">
-          <div v-for="(d, i) in fmt.weekly_calendar" :key="i" class="day">
+          <div v-for="(d, i) in fmt.weekly_calendar" :key="i" class="day clickable" @click="openFromCalendar(d)">
             <div class="day-head">{{ d.day }}</div>
             <div class="day-chan">{{ d.channel }}</div>
             <p>{{ d.action }}</p>
@@ -279,7 +307,7 @@ function exportMarkdown(key) {
       <div v-else-if="section === 'calendar'">
         <h2>Calendrier éditorial</h2>
         <div class="calendar">
-          <div v-for="(d, i) in fmt.weekly_calendar" :key="i" class="day">
+          <div v-for="(d, i) in fmt.weekly_calendar" :key="i" class="day clickable" @click="openFromCalendar(d)">
             <div class="day-head">{{ d.day }}</div>
             <div class="day-chan">{{ d.channel }}</div>
             <p>{{ d.action }}</p>
@@ -307,7 +335,7 @@ function exportMarkdown(key) {
         <h2>Carrousel</h2>
         <div class="cards">
           <div class="content-card">
-            <div class="cc-top"><span class="tag">LinkedIn · Instagram · TikTok</span><span class="cc-meta">{{ carousel.slides.length }} slides</span></div>
+            <div class="cc-top"><span class="tag">LinkedIn · Instagram · TikTok</span><span class="cc-meta">{{ carousel.slides.length }} slides · ≈ {{ carouselSeconds }}s</span></div>
             <div class="cc-title">{{ carousel.title }}</div>
             <p class="cc-preview">{{ carousel.slides[0] }}</p>
             <div class="cc-actions">
@@ -341,6 +369,9 @@ function exportMarkdown(key) {
             <div class="clip-head">
               <span v-if="m.timestamp" class="clip-ts">{{ m.timestamp }}</span>
               <span class="clip-title">{{ m.title }}</span>
+              <span v-if="typeof m.score === 'number'" class="clip-score" :class="{ hot: m.score >= 80 }">
+                Potentiel {{ m.score }}
+              </span>
             </div>
             <p class="clip-hook">« {{ m.hook }} »</p>
             <p class="clip-why">{{ m.why }}</p>
@@ -429,7 +460,8 @@ h3 { font-size: 1.05rem; margin: 32px 0 14px; letter-spacing: -0.01em; }
 /* Accueil */
 .landing { max-width: 760px; margin: 0 auto; padding: 56px 24px 64px; }
 .intro { text-align: center; margin-bottom: 40px; }
-.logo-lg { display: flex; justify-content: center; margin-bottom: 22px; }
+.logo-lg { display: flex; justify-content: center; margin-bottom: 18px; }
+.kicker { color: var(--accent); font-size: 0.8rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 14px; }
 .intro h1 { font-size: 2.5rem; line-height: 1.12; letter-spacing: -0.02em; margin: 0 0 16px; }
 .intro h1 span { color: var(--accent); }
 .intro p { color: var(--muted); font-size: 1.1rem; max-width: 560px; margin: 0 auto; }
@@ -470,7 +502,7 @@ select { background: var(--bg); border: 1px solid var(--line); border-radius: 8p
 
 /* Workspace */
 .app { display: grid; grid-template-columns: 244px 1fr; min-height: calc(100vh - 56px); }
-.sidebar { border-right: 1px solid var(--line-soft); padding: 20px 14px; display: flex; flex-direction: column; }
+.sidebar { border-right: 1px solid var(--line-soft); padding: 20px 14px; display: flex; flex-direction: column; position: sticky; top: 56px; align-self: start; height: calc(100vh - 56px); overflow-y: auto; }
 .side-title { font-weight: 600; font-size: 0.95rem; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .side-meta { color: var(--faint); font-size: 0.78rem; margin: 6px 0 18px; }
 .sidebar nav { flex: 1; display: flex; flex-direction: column; gap: 2px; }
@@ -485,10 +517,12 @@ select { background: var(--bg); border: 1px solid var(--line); border-radius: 8p
 .workspace { padding: 28px 36px; max-width: 900px; }
 
 /* Stats */
-.stat-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin: 8px 0 24px; }
-.stat { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
-.stat-n { font-size: 1.7rem; font-weight: 700; letter-spacing: -0.02em; }
-.stat-l { color: var(--muted); font-size: 0.8rem; margin-top: 2px; }
+.stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 8px 0 24px; }
+.stat { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
+.stat.featured { border-color: var(--accent); background: var(--accent-soft); }
+.stat.featured .stat-n { color: var(--accent); }
+.stat-n { font-size: 1.8rem; font-weight: 700; letter-spacing: -0.02em; }
+.stat-l { color: var(--muted); font-size: 0.82rem; margin-top: 2px; }
 .breakdown { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
 .bd-row { display: flex; align-items: center; gap: 12px; padding: 13px 18px; cursor: pointer; }
 .bd-row + .bd-row { border-top: 1px solid var(--line-soft); }
@@ -500,6 +534,8 @@ select { background: var(--bg); border: 1px solid var(--line); border-radius: 8p
 /* Calendrier */
 .calendar { display: grid; gap: 10px; }
 .day { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 10px; padding: 14px 16px; }
+.day.clickable { cursor: pointer; transition: background 0.12s, border-color 0.12s; }
+.day.clickable:hover { background: var(--panel-2); border-color: var(--accent); }
 .day-head { font-weight: 650; }
 .day-chan { color: var(--accent); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; margin: 2px 0 6px; }
 .day p { margin: 0; color: var(--muted); font-size: 0.92rem; }
@@ -511,7 +547,7 @@ select { background: var(--bg); border: 1px solid var(--line); border-radius: 8p
 .tag { background: var(--accent-soft); color: var(--accent); font-size: 0.72rem; font-weight: 600; padding: 3px 8px; border-radius: 6px; white-space: nowrap; }
 .cc-meta { color: var(--faint); font-size: 0.78rem; white-space: nowrap; }
 .cc-title { font-weight: 600; margin-bottom: 6px; }
-.cc-preview { color: var(--muted); font-size: 0.88rem; line-height: 1.5; margin: 0 0 16px; flex: 1; }
+.cc-preview { color: var(--muted); font-size: 0.88rem; line-height: 1.5; margin: 0 0 16px; flex: 1; white-space: pre-line; display: -webkit-box; -webkit-line-clamp: 8; -webkit-box-orient: vertical; overflow: hidden; }
 .cc-actions { display: flex; gap: 8px; }
 .btn-primary { display: inline-flex; align-items: center; gap: 6px; background: var(--accent); color: #fff; border: none; border-radius: 8px; padding: 8px 14px; font-size: 0.85rem; font-weight: 500; cursor: pointer; }
 .btn-ghost { display: inline-flex; align-items: center; gap: 6px; background: var(--panel-2); border: 1px solid var(--line); color: var(--text); border-radius: 8px; padding: 8px 12px; font-size: 0.85rem; cursor: pointer; }
@@ -523,7 +559,9 @@ select { background: var(--bg); border: 1px solid var(--line); border-radius: 8p
 .clip { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
 .clip-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
 .clip-ts { font-variant-numeric: tabular-nums; background: var(--accent-soft); color: var(--accent); font-size: 0.78rem; font-weight: 600; padding: 2px 8px; border-radius: 6px; }
-.clip-title { font-weight: 600; }
+.clip-title { font-weight: 600; flex: 1; }
+.clip-score { font-size: 0.74rem; font-weight: 600; color: var(--muted); border: 1px solid var(--line); padding: 2px 8px; border-radius: 20px; white-space: nowrap; }
+.clip-score.hot { color: var(--ok); border-color: var(--ok); }
 .clip-hook { margin: 0 0 6px; font-style: italic; color: var(--text); }
 .clip-why { margin: 0; color: var(--muted); font-size: 0.9rem; }
 
@@ -573,7 +611,7 @@ select { background: var(--bg); border: 1px solid var(--line); border-radius: 8p
 
 @media (max-width: 720px) {
   .app { grid-template-columns: 1fr; }
-  .sidebar { border-right: none; border-bottom: 1px solid var(--line-soft); }
+  .sidebar { border-right: none; border-bottom: 1px solid var(--line-soft); position: static; height: auto; }
   .workspace { padding: 20px; }
   .stat-row { grid-template-columns: 1fr 1fr; }
   .slide-grid { grid-template-columns: 1fr; }
